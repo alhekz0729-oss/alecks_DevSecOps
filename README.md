@@ -2,11 +2,11 @@
 
 This repository contains two parallel implementations of a simple Python Flask application to demonstrate **secure DevSecOps practices** versus **common security pitfalls**.
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 alecks_DevSecOps/
-├── good-app/                      # ✅ Secure implementation
+├── good-app/                      # [GOOD] Secure implementation
 │   ├── app/
 │   │   └── main.py               # Clean, secure Flask API
 │   ├── tests/
@@ -14,7 +14,7 @@ alecks_DevSecOps/
 │   ├── Dockerfile                # Secure, minimal base image
 │   └── requirements.txt           # Secure dependency versions
 │
-├── bad-app/                       # ❌ Intentionally vulnerable implementation
+├── bad-app/                       # [BAD] Intentionally vulnerable implementation
 │   ├── app/
 │   │   └── main.py               # Contains validation bug
 │   ├── tests/
@@ -24,11 +24,11 @@ alecks_DevSecOps/
 │
 └── .github/
     └── workflows/
-        ├── good-app-pipeline.yml  # ✅ Demonstrates PASSING pipeline
-        └── bad-app-pipeline.yml   # ❌ Demonstrates FAILING pipeline
+        ├── good-app-pipeline.yml  # [GOOD] Demonstrates PASSING pipeline
+        └── bad-app-pipeline.yml   # [BAD] Demonstrates FAILING pipeline
 ```
 
-## 🔍 Key Differences
+## Key Differences
 
 ### Application Code
 
@@ -42,7 +42,7 @@ def echo():
     message = data["message"].strip()
     return jsonify(message=message), 200
 ```
-✅ **Proper input validation and error handling**
+✓ **Proper input validation and error handling**
 
 #### Bad App (`bad-app/app/main.py`)
 ```python
@@ -50,7 +50,7 @@ def is_strong_password(password: str) -> bool:
     # BUG: Accepts any password with a digit, even if < 8 chars
     return len(password) >= 8 or any(char.isdigit() for char in password)
 ```
-❌ **Flawed validation logic: "1" would be accepted as a strong password**
+✗ **Flawed validation logic: "1" would be accepted as a strong password**
 
 ---
 
@@ -69,46 +69,46 @@ def is_strong_password(password: str) -> bool:
 | Aspect | Good App | Bad App | Issue |
 |--------|----------|---------|-------|
 | **Base Image** | `python:3.12-slim` | `python:3.8-buster` | Buster is outdated, includes OS vulns |
-| **Security** | Non-root user | Runs as root | ❌ Privilege escalation risk |
+| **Security** | Non-root user | Runs as root | ✗ Privilege escalation risk |
 | **Size** | Minimal (~150MB) | Larger (~900MB+) | Larger attack surface |
 
 ---
 
 ### Pipeline Stages
 
-#### Good App Pipeline ✅
+#### Good App Pipeline [PASS]
 
 ```
-dependency-scan → unit-tests → build-image → container-scan → deploy ✅
+dependency-scan → unit-tests → build-image → container-scan → deploy [PASS]
   (No vulns)       (All pass)     (Clean)      (No issues)     (Ready)
 ```
 
 **What passes:**
-- ✅ No vulnerable dependencies detected
-- ✅ All unit tests pass
-- ✅ Container image builds successfully
-- ✅ Minimal security findings (only expected base image info)
-- ✅ Deployment stage completes
+- ✓ No vulnerable dependencies detected
+- ✓ All unit tests pass
+- ✓ Container image builds successfully
+- ✓ Minimal security findings (only expected base image info)
+- ✓ Deployment stage completes
 
-#### Bad App Pipeline ❌
+#### Bad App Pipeline [FAIL]
 
 ```
-dependency-scan → unit-tests → build-image → container-scan → report ❌
+dependency-scan → unit-tests → build-image → container-scan → report [FAIL]
   (Vulns found)   (Test fails)    (Succeeds)   (Many issues)   (Fails)
 ```
 
 **What fails:**
-- ❌ CVEs detected in Flask 2.2.0 and pytest 6.2.5
-- ❌ Unit test fails: `test_register_rejects_weak_password`
+- ✗ CVEs detected in Flask 2.2.0 and pytest 6.2.5
+- ✗ Unit test fails: `test_register_rejects_weak_password`
   - Password "12345" incorrectly accepted (has digit but < 8 chars)
-- ⚠️ Container scan finds HIGH/CRITICAL vulnerabilities
+- [WARN] Container scan finds HIGH/CRITICAL vulnerabilities
   - Outdated Python 3.8-buster base image
   - OS-level CVEs in Debian buster
-- ❌ Pipeline halts at security validation
+- ✗ Pipeline halts at security validation
 
 ---
 
-## 🚀 Running Locally
+## Running Locally
 
 ### Good App
 ```bash
@@ -148,7 +148,7 @@ docker build -t bad-app:latest .
 
 ---
 
-## 📊 Vulnerability Examples
+## Vulnerability Examples
 
 ### CVEs in Bad App Dependencies
 
@@ -171,44 +171,44 @@ trivy image python:3.12-slim   # Shows minimal vulns
 
 ---
 
-## 🔐 DevSecOps Lessons
+## DevSecOps Lessons
 
 ### Good Practices Demonstrated in `good-app/`
 
 1. **Dependency Management**
-   - ✅ Use latest secure versions
-   - ✅ Pin exact versions in requirements.txt
-   - ✅ Regular audits with `pip-audit`
+   - ✓ Use latest secure versions
+   - ✓ Pin exact versions in requirements.txt
+   - ✓ Regular audits with `pip-audit`
 
 2. **Code Quality**
-   - ✅ Proper input validation
-   - ✅ Explicit error handling
-   - ✅ 100% test coverage
+   - ✓ Proper input validation
+   - ✓ Explicit error handling
+   - ✓ 100% test coverage
 
 3. **Container Security**
-   - ✅ Use minimal base images (`-slim`, `-alpine`)
-   - ✅ Modern Python LTS versions
-   - ✅ Run as non-root user
-   - ✅ Explicit EXPOSE and CMD
+   - ✓ Use minimal base images (`-slim`, `-alpine`)
+   - ✓ Modern Python LTS versions
+   - ✓ Run as non-root user
+   - ✓ Explicit EXPOSE and CMD
 
 4. **Pipeline Security**
-   - ✅ Dependency scanning (pip-audit)
-   - ✅ Unit test validation
-   - ✅ Container image scanning (Trivy)
-   - ✅ Gating deployment on security checks
+   - ✓ Dependency scanning (pip-audit)
+   - ✓ Unit test validation
+   - ✓ Container image scanning (Trivy)
+   - ✓ Gating deployment on security checks
 
 ### Anti-Patterns in `bad-app/`
 
-1. ❌ Outdated dependencies with known CVEs
-2. ❌ Flawed business logic (validation bug)
-3. ❌ Outdated base images (EOL Python, old Debian)
-4. ❌ Running as root in container
-5. ❌ No security scanning in development
-6. ❌ Allowing failed security checks
+1. ✗ Outdated dependencies with known CVEs
+2. ✗ Flawed business logic (validation bug)
+3. ✗ Outdated base images (EOL Python, old Debian)
+4. ✗ Running as root in container
+5. ✗ No security scanning in development
+6. ✗ Allowing failed security checks
 
 ---
 
-## 🔗 GitHub Actions Workflows
+## GitHub Actions Workflows
 
 ### Good App Pipeline (`good-app-pipeline.yml`)
 
@@ -234,7 +234,7 @@ trivy image python:3.12-slim   # Shows minimal vulns
 
 ---
 
-## 📈 Training Use Cases
+## Training Use Cases
 
 ### For Security Teams
 - Audit your pipelines for these patterns
@@ -259,7 +259,7 @@ trivy image python:3.12-slim   # Shows minimal vulns
 
 ---
 
-## 🛠️ Local Testing
+## Local Testing
 
 ### Run Container Scans Locally
 
@@ -285,11 +285,11 @@ pip install pip-audit
 
 # Good app
 cd good-app
-pip-audit  # ✅ No vulnerabilities found
+pip-audit  # ✓ No vulnerabilities found
 
 # Bad app
 cd ../bad-app
-pip-audit  # ❌ Shows CVEs in Flask and pytest
+pip-audit  # ✗ Shows CVEs in Flask and pytest
 ```
 
 ### Run Unit Tests
@@ -298,17 +298,17 @@ pip-audit  # ❌ Shows CVEs in Flask and pytest
 # Good app
 cd good-app
 pip install -r requirements.txt
-pytest -v  # ✅ All pass
+pytest -v  # ✓ All pass
 
 # Bad app
 cd ../bad-app
 pip install -r requirements.txt
-pytest -v  # ❌ test_register_rejects_weak_password FAILED
+pytest -v  # ✗ test_register_rejects_weak_password FAILED
 ```
 
 ---
 
-## 📝 API Endpoints
+## API Endpoints
 
 ### Good App: `/echo` endpoint
 ```bash
@@ -334,7 +334,7 @@ curl -X POST http://localhost:5000/register \
 
 ---
 
-## 📚 References
+## References
 
 - [OWASP Top 10](https://owasp.org/Top10/)
 - [CWE: Improper Input Validation (CWE-20)](https://cwe.mitre.org/data/definitions/20.html)
@@ -345,13 +345,13 @@ curl -X POST http://localhost:5000/register \
 
 ---
 
-## 📜 License
+## License
 
 MIT License - Feel free to use this for training and demonstration purposes.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 This repository is designed for educational purposes. Improvements and additional scenarios welcome!
 

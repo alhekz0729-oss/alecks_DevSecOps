@@ -72,6 +72,6 @@ jobs:
     steps:
       - name: Deployment successful
         run: |
-          echo "✅ All security checks passed!"
-          echo "📦 Good App container image is production-ready"
-          echo "🚀 Ready for deployment to staging/production"
+          echo "[SUCCESS] All security checks passed!"
+          echo "[INFO] Good App container image is production-ready"
+          echo "[INFO] Ready for deployment to staging/production"

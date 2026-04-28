@@ -73,11 +73,11 @@ jobs:
     steps:
       - name: Pipeline Summary
         run: |
-          echo "❌ PIPELINE FAILURES DETECTED"
+          echo "[FAILED] PIPELINE FAILURES DETECTED"
           echo "=========================================="
           echo "This pipeline intentionally demonstrates:"
-          echo "  ⚠️  Vulnerable dependencies (Flask 2.2.0)"
-          echo "  ⚠️  Failing unit tests (password validation bug)"
-          echo "  ⚠️  Outdated container base image (Python 3.8-buster)"
-          echo "  ⚠️  Multiple CVEs detected in dependencies"
+          echo "  [WARN] Vulnerable dependencies (Flask 2.2.0)"
+          echo "  [WARN] Failing unit tests (password validation bug)"
+          echo "  [WARN] Outdated container base image (Python 3.8-buster)"
+          echo "  [WARN] Multiple CVEs detected in dependencies"
           echo "=========================================="

@@ -1,0 +1,73 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install audit tools
+        run: |
+          python -m pip install --upgrade pip pip-audit
+      - name: Dependency vulnerability scan
+        run: |
+          pip-audit --progress=off --strict
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements.txt
+
+  unit-tests:
+    needs: dependency-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements.txt
+      - name: Run unit tests
+        run: |
+          pytest -q
+
+  build-image:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Docker image
+        run: |
+          docker build -t secure-app:latest .
+
+  container-scan:
+    needs: build-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scan container image with Trivy
+        uses: aquasecurity/trivy-action@v0.41.0
+        with:
+          image-ref: secure-app:latest
+          format: table
+
+  deploy:
+    needs: container-scan
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy artifact
+        run: echo "Deployment successful: image secure-app:latest is ready"

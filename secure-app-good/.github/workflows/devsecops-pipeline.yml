@@ -8,23 +8,67 @@ on:
 
 jobs:
   dependency-scan:
+    name: Dependency vulnerability scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install audit tools
+      - name: Install scanning tools
         run: |
           python -m pip install --upgrade pip pip-audit
-      - name: Dependency vulnerability scan
+      - name: Run dependency scan
         run: |
-          pip-audit --progress=off --strict
-      - name: Install dependencies
+          mkdir -p scan-results
+          pip-audit --progress=off --strict > scan-results/pip-audit-report.txt
+      - name: Upload dependency scan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-scan-report
+          path: scan-results/pip-audit-report.txt
+
+  sast-scan:
+    name: SAST with Semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Semgrep
         run: |
-          python -m pip install -r requirements.txt
+          python -m pip install --upgrade pip semgrep
+      - name: Run Semgrep rules
+        run: |
+          mkdir -p scan-results
+          semgrep scan --config .semgrep.yml --sarif --output scan-results/semgrep-report.sarif
+          semgrep scan --config .semgrep.yml --output scan-results/semgrep-report.txt
+      - name: Upload SAST artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-report
+          path: scan-results
+
+  secret-scan:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare secret scan output folder
+        run: mkdir -p scan-results
+      - name: Run Gitleaks secret scan
+        uses: zricethezav/gitleaks-action@v8
+        with:
+          args: '--path=. --report-format=json --report-path=scan-results/gitleaks-report.json'
+      - name: Upload secret scan report
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-scan-report
+          path: scan-results/gitleaks-report.json
 
   unit-tests:
+    name: Unit tests
     needs: dependency-scan
     runs-on: ubuntu-latest
     steps:
@@ -32,42 +76,45 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install dependencies
+      - name: Install test dependencies
         run: |
-          python -m pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
       - name: Run unit tests
-        run: |
-          pytest -q
+        run: pytest -q
 
   build-image:
-    needs: unit-tests
+    name: Build, scan, and certify image
+    needs: [dependency-scan, sast-scan, secret-scan, unit-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build Docker image
+      - name: Build Docker image tagged with commit SHA
         run: |
-          docker build -t secure-app:latest .
-
-  container-scan:
-    needs: build-image
-    runs-on: ubuntu-latest
-    steps:
+          docker build --pull -t secure-app:${{ github.sha }} .
+      - name: Generate SBOM for built image
+        run: |
+          mkdir -p sbom scan-results
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace anchore/syft:latest packages secure-app:${{ github.sha }} -o cyclonedx-json=sbom/cyclonedx-sbom.json
       - name: Scan container image with Trivy
         uses: aquasecurity/trivy-action@v0.41.0
         with:
-          image-ref: secure-app:latest
-          format: table
-
-  deploy:
-    needs: container-scan
-    if: success()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy artifact
-        run: echo "Deployment successful: image secure-app:latest is ready"
+          image-ref: secure-app:${{ github.sha }}
+          format: json
+          output: scan-results/trivy-report.json
+          severity: CRITICAL,HIGH,MEDIUM
+      - name: Produce trusted image metadata
+        run: |
+          echo "image: secure-app:${{ github.sha }}" > scan-results/image-identifier.txt
+          echo "build-trust: trusted" >> scan-results/image-identifier.txt
+          docker image inspect secure-app:${{ github.sha }} --format '{{.Id}}' > scan-results/image-digest.txt
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            sbom/cyclonedx-sbom.json
+            scan-results/trivy-report.json
+            scan-results/image-identifier.txt
+            scan-results/image-digest.txt

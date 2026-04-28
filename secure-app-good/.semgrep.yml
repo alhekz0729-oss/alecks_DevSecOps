@@ -1,0 +1,24 @@
+rules:
+  - id: no-hardcoded-secrets
+    languages: [python]
+    message: "Avoid hardcoded credentials or secrets in source code."
+    severity: ERROR
+    patterns:
+      - pattern: $VAR = "secret"
+      - pattern: $VAR = 'secret'
+      - pattern: $VAR = "password"
+      - pattern: $VAR = 'password'
+
+  - id: no-silent-json-parsing
+    languages: [python]
+    message: "Avoid request.get_json(silent=True) because it can mask malformed JSON and bypass validation."
+    severity: WARNING
+    patterns:
+      - pattern: request.get_json(silent=True)
+
+  - id: require-health-endpoint
+    languages: [python]
+    message: "Expose a health endpoint for container orchestration and readiness checks."
+    severity: INFO
+    patterns:
+      - pattern: def health():

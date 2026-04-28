@@ -9,11 +9,11 @@ def health():
 
 @app.route("/echo", methods=["POST"])
 def echo():
-    data = request.get_json(silent=True)
-    if not data or "message" not in data:
+    data = request.get_json()
+    if data is None or "message" not in data:
         raise BadRequest("JSON body must contain 'message'")
 
-    message = data["message"].strip()
+    message = str(data["message"]).strip()
     return jsonify(message=message), 200
 
 if __name__ == "__main__":

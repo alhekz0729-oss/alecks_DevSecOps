@@ -1,0 +1,24 @@
+rules:
+  - id: python-no-shell-true
+    message: "Avoid shell=True in subprocess calls; use argument lists to prevent injection."
+    severity: ERROR
+    languages:
+      - python
+    patterns:
+      - pattern: subprocess.run($CMD, shell=True)
+
+  - id: python-no-requests-verify-false
+    message: "Do not disable TLS verification in requests."
+    severity: ERROR
+    languages:
+      - python
+    patterns:
+      - pattern: requests.get(..., verify=False)
+
+  - id: python-hardcoded-secret
+    message: "Avoid hardcoded secrets and credentials in source files."
+    severity: WARNING
+    languages:
+      - python
+    patterns:
+      - pattern: $X = "*secret*"

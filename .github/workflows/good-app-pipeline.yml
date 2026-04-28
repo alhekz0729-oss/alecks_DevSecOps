@@ -59,7 +59,7 @@ jobs:
     needs: build-image
     runs-on: ubuntu-latest
     steps:
-      - uses: aquasecurity/trivy-action@v0.41.0
+      - uses: aquasecurity/trivy-action@v0.26.0
         with:
           image-ref: good-app:latest
           format: table

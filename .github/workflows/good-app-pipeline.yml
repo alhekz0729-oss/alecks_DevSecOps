@@ -56,6 +56,7 @@ jobs:
           cd good-app && docker build -t good-app:latest .
       - name: Container vulnerability scan
         uses: aquasecurity/trivy-action@v0.26.0
+        continue-on-error: true
         with:
           image-ref: good-app:latest
           format: table

@@ -1,0 +1,83 @@
+name: Bad App - DevSecOps Pipeline (Intentional Failures)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bad-app/**'
+      - '.github/workflows/bad-app-pipeline.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'bad-app/**'
+      - '.github/workflows/bad-app-pipeline.yml'
+
+jobs:
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+      - name: Install audit tools
+        run: |
+          python -m pip install --upgrade pip pip-audit
+      - name: Dependency vulnerability scan
+        run: |
+          cd bad-app && pip-audit --progress=off --strict || echo "VULNERABILITIES DETECTED - Pipeline continues for demonstration"
+      - name: Install dependencies
+        run: |
+          cd bad-app && python -m pip install -r requirements.txt
+
+  unit-tests:
+    needs: dependency-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+      - name: Install dependencies
+        run: |
+          cd bad-app && python -m pip install -r requirements.txt
+      - name: Run unit tests
+        run: |
+          cd bad-app && pytest -v
+
+  build-image:
+    needs: unit-tests
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        run: |
+          cd bad-app && docker build -t bad-app:latest .
+
+  container-scan:
+    needs: build-image
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aquasecurity/trivy-action@v0.26.0
+        with:
+          image-ref: bad-app:latest
+          format: table
+
+  report-status:
+    needs: [dependency-scan, unit-tests, container-scan]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pipeline Summary
+        run: |
+          echo "[FAILED] PIPELINE FAILURES DETECTED"
+          echo "=========================================="
+          echo "This pipeline intentionally demonstrates:"
+          echo "  [WARN] Vulnerable dependencies (Flask 2.2.0)"
+          echo "  [WARN] Failing unit tests (password validation bug)"
+          echo "  [WARN] Outdated container base image (Python 3.8-buster)"
+          echo "  [WARN] Multiple CVEs detected in dependencies"
+          echo "=========================================="
